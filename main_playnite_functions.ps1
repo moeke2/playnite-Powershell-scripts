@@ -3,23 +3,25 @@ function choose_controller{
 		$controller = '',
 		$cancel_button = 0,
 		[switch]$admin,
-		$connect_alert = 0
+		$connect_alert = 0,
+		[switch]$dont_ask
 	)
-	
+	if ($dont_ask){ $script:popup = 'Yes'}
+	else {
+		
 	if ($cancel_button -eq 1){
 		$ButtonType = 'YesNoCancel'
 		$MessageBody = "Do you want to connect a ${controller} controller?`n`nclick 'cancel' if you want to stop connecting controllers."
 	}
-	
 	else{
 		$ButtonType = 'YesNo'
 		$MessageBody = "Do you want to connect a ${controller} controller?"
 	}
-	
 	$MessageIcon = 'Question'
 	$MessageTitle = "Connect ${controller}?"
-
 	$popup = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
+	
+	}
 	
 	switch ($popup) {
 		'Yes'    {
