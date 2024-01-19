@@ -1,45 +1,46 @@
-# RUN BEFORE STARTING A GAME
-function ChooseController{
+function choose_controller{
 	param(
-		$Controller = '',
-		$MultipleOptions = 0,
-		$Admin = '',
-		$ConnectAlert = 0
+		$controller = '',
+		$cancel_button = 0,
+		[switch]$admin,
+		$connect_alert = 0
 	)
 	
-	if ($MultipleOptions -eq 1){
+	if ($cancel_button -eq 1){
 		$ButtonType = 'YesNoCancel'
-		$MessageBody = "Do you want to connect a ${Controller} controller?`n`nclick 'cancel' if you want to stop connecting controllers."
+		$MessageBody = "Do you want to connect a ${controller} controller?`n`nclick 'cancel' if you want to stop connecting controllers."
 	}
 	
 	else{
 		$ButtonType = 'YesNo'
-		$MessageBody = "Do you want to connect a ${Controller} controller?"
+		$MessageBody = "Do you want to connect a ${controller} controller?"
 	}
 	
 	$MessageIcon = 'Question'
-	$MessageTitle = "Connect ${Controller}?"
+	$MessageTitle = "Connect ${controller}?"
 
-	$Result = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
+	$popup = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
 	
-	switch ($Result) {
+	switch ($popup) {
 		'Yes'    {
-			switch ($Controller){
+			switch ($controller){
 				'wii'	{							
-							$Code = 'Start-Process -FilePath "ms-settings:bluetooth"'+"`n"
-							$Code += 'Start-Sleep -s 1'+"`n"
-							$Code += 'Start-Process -FilePath "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"'+"`n"
-							Invoke-Expression $Code
+							Start-Process -FilePath "explorer.exe" "ms-settings:bluetooth"
+							Start-Sleep -s 1
+							Start-Process -FilePath "explorer.exe" "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"
 							
-							$Result = [System.Windows.Forms.MessageBox]::Show("Click OK if all your Wiimote's are connected.", "Connect your Wiimote's", "OKCancel", 32)
-							if ($Result -eq 'Ok') {Start-Process "D:\Program Files\WiimoteHook\WiimoteHook.exe" -WindowStyle Minimized}
+							$popup = [System.Windows.Forms.MessageBox]::Show("Click OK if all your Wiimote's are connected.", "Connect your Wiimote's", "OKCancel", 32)
+							if ($popup -eq 'Ok') {
+								$script:wiimotehook = Start-Process "D:\Program Files\WiimoteHook\WiimoteHook.exe" -WindowStyle Minimized -PassThru
+								$script:wiimotehook_popup = Start-Process powershell -ArgumentList "D:\Games\Playnite\_playnite_scripts\'Wiimote popup.ps1'" -NoNewWindow -PassThru}
 						}
 				'ps4'	{
-							$Code = 'Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized'
-							if ($Admin -eq 'admin'){$Code += ' -Verb RunAs'}
-							$Code += "`n"
-							if ($ConnectAlert -eq 1) {$Code += '[System.Windows.Forms.MessageBox]::Show("Make sure you have your controllers connected via bluetooth!", "Important!", "OK", 64)'}
+							$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
+							if ($admin){$code += ' -Verb RunAs'}
 							Invoke-Expression $Code
+							
+							if ($connect_alert -eq 1) {[System.Windows.Forms.MessageBox]::Show("Make sure you have your controllers connected via bluetooth!", "Important!", "OK", 64)}
+							
 						}
 				'ps3'	{}
 				default {[System.Windows.Forms.MessageBox]::Show("something is wrong with your playnite input")}
@@ -51,15 +52,11 @@ function ChooseController{
 		default  { return }
 	}
 }
-#RUN AFTER A GAME IS STARTED
 
-#RUN AFTER EXITING A GAME
-function Close{
-	param(
-		$Controller = ''
-	)
-	switch ($Controller){
-		'wii'	{									}
-		'ps4'	{(Get-WmiObject -Class Win32_Process -Filter "name = 'DS4Windows.exe'").Terminate()}
-	}
+function clean_apps{
+	try {$wiimotehook.CloseMainWindow()} catch {}
+	try {Stop-Process -Id $wiimotehook_popup.Id} catch {}
+	try {Stop-Process -Id $ds4.Id} catch {try{(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {}}
 }
+
+#this command worked when i tested it: Start-Process powershell "D:\Games\Playnite\_playnite_scripts\'Wiimote popup.ps1'" -NoNewWindow 

@@ -7,7 +7,7 @@ $popup_box.Size				= New-Object System.Drawing.Size(225, 105)
 $popup_box.StartPosition	= 'CenterScreen'
 $popup_box.FormBorderStyle 	= 'FixedDialog'
 $popup_box.ControlBox     	= $false
-#$popup_box.WindowState = 'Minimized'
+$popup_box.WindowState 		= 'Minimized'
 
 $button						= New-Object System.Windows.Forms.Button
 $button.Text     			= "Restart configuration"
