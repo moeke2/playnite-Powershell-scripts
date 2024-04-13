@@ -17,13 +17,14 @@ $button.Location 			= New-Object System.Drawing.Point(10, 10)
 $action = {
 	$popup_box.Hide()	
 	
-	$Code = 'Start-Process -FilePath "ms-settings:bluetooth"'+"`n"
-	$Code += 'Start-Sleep -s 1'+"`n"
-	$Code += 'Start-Process -FilePath "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"'+"`n"
-	Invoke-Expression $Code
+	if (Get-Process -Name "WiimoteHook" -ErrorAction SilentlyContinue) {Stop-Process -Name "WiimoteHook"}
+	Start-Process -FilePath "explorer.exe" "ms-settings:bluetooth"
+	Start-Sleep -s 1
+	Start-Process -FilePath "explorer.exe" "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"
 	
-	$Result = [System.Windows.Forms.MessageBox]::Show("Click OK if all your Wiimote's are connected.", "Connect your Wiimote's", "OKCancel", 32)
-	if ($Result -eq 'Ok') {Start-Process "D:\Program Files\WiimoteHook\WiimoteHook.exe" -WindowStyle Minimized}
+	$popup = [System.Windows.Forms.MessageBox]::Show("Click OK if all your Wiimote's are connected.", "Connect your Wiimote's", "OKCancel", 32)
+	if ($popup -eq 'Ok') {
+	$script:wiimotehook = Start-Process "D:\Program Files\WiimoteHook\WiimoteHook.exe" -WindowStyle Minimized -PassThru}
 	
 	$popup_box.WindowState = 'Minimized'
 	$popup_box.Show()
