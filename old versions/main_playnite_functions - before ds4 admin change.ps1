@@ -47,21 +47,12 @@ function choose_controller{
 						}
 				'ps4'	{
 							if (Get-Process -Name "DS4Windows" -ErrorAction SilentlyContinue) {
-								if ($admin) {try{Stop-Process -Name "DS4Windows"} catch {}}
-								$script:DS4_already_running = $true
+								if (!$admin){return}
+								(Get-WmiObject -Class Win32_Process -Filter "Name = 'DS4Windows.exe'").Terminate()
 							}
-							else {$script:DS4_already_running = $false}
-							if ($admin){
-								Start-Process "wscript.exe" -ArgumentList "C:\Users\jonas\scripts\DS4Windows.vbs" -NoNewWindow -Wait
-								$script:ds4 = $true #dummy declaration
-							}
-							else {
-								$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
-								Invoke-Expression $code
-							}
-							#$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
-							#if ($admin){$code += ' -Verb RunAs'}
-							#Invoke-Expression $Code
+							$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
+							if ($admin){$code += ' -Verb RunAs'}
+							Invoke-Expression $Code
 							
 							#if ($alert) {[System.Windows.Forms.MessageBox]::Show("Make sure you have your controllers connected via bluetooth!", "Important!", "OK", 64)}
 							
@@ -93,10 +84,7 @@ function clean_apps{
 		try {$wiimotehook.CloseMainWindow()} catch {try{Stop-Process -Name "WiimoteHook"} catch{}}
 		try {Stop-Process -Id $wiimotehook_popup.Id} catch {} }
 	if ($ds4) {
-		if (!$DS4_already_running) {
-			try {(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'DS4Windows.exe'").Terminate()} catch {}} 
-		}
-	}
+		try {(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {try{Stop-Process -Name "DS4Windows"} catch {}} }
 	if ($ds3) {
 		try{Stop-Process -Id $ds3.Id}catch{} 
 		$script:ds3= Start-Process "D:\Program Files\dshidmini_v2.2.282.0\DSHMC.exe" -PassThru }
