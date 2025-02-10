@@ -2,6 +2,7 @@ import os
 import shutil
 import tkinter as tk
 from tkinter import messagebox
+import ctypes
 
 # Configuration paths
 BASE_DIR = r"D:\Games\Nordic Souls\profiles\Nordic Souls"
@@ -54,6 +55,7 @@ def copy_ini_files(resolution):
 
 
 def main_gui():
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
     root = tk.Tk()
     root.title("Skyrim Resolution Manager")
     root.overrideredirect(True)  # Remove window decorations
@@ -92,8 +94,8 @@ def main_gui():
     root.configure(bg=colors["bg"])
 
     # Window size and centering (keep your original geometry code)
-    win_width = 420
-    win_height = 180
+    win_width = 525
+    win_height = 225
     root.geometry(f"{win_width}x{win_height}+{(root.winfo_screenwidth() - win_width)//2}+{(root.winfo_screenheight() - win_height)//2}")
 
     def handle_selection(selection):
@@ -110,17 +112,17 @@ def main_gui():
             root.destroy()
 
     # Close button (theme-adjusted)
-    close_btn = tk.Button(root, text="✕", font=("Arial", 14),
-                        command=root.destroy, bd=0,
-                        bg=colors["bg"], fg="#888" if theme == "light" else "#666",
+    close_btn = tk.Button(root, text="✕", font=("Arial", 15,"bold"),
+                        command=root.destroy, bd=0, activebackground=colors["bg"],
+                          bg=colors["bg"], fg="#888" if theme == "light" else "#666",
                         activeforeground="red", relief="flat")
-    close_btn.place(x=win_width-35, y=5, width=30, height=30)
+    close_btn.place(x=win_width-3, y=3, width=25, height=25, anchor = "ne")
     close_btn.bind("<Enter>", lambda e: close_btn.config(fg="red"))
     close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#888" if theme == "light" else "#666"))
 
     # Title (theme-adjusted)
     title_label = tk.Label(root, text="Choose Skyrim Resolution",
-                         font=("Arial", 14, "bold"),
+                         font=("Arial", 16, "bold"),
                          bg=colors["bg"], fg=colors["fg"])
     title_label.place(relx=0.5, rely=0.15, anchor="n")
 
@@ -131,7 +133,7 @@ def main_gui():
     current_res = get_current_resolution() or "Not set"
 
     for res in resolutions:
-        btn = tk.Button(btn_frame, text=res, width=16, height=2,
+        btn = tk.Button(btn_frame, text=res, width=18, height=2,
                       font=("Arial", 12, "bold"), relief="flat",
                       bg=colors["button_bg"], fg=colors["fg"],
                       activebackground=colors["button_bg"],
@@ -149,6 +151,7 @@ def main_gui():
            font=("Arial", 10), bg=colors["status_bg"], fg=colors["fg"]).pack(pady=6)
 
     root.mainloop()
+
 
 
 
