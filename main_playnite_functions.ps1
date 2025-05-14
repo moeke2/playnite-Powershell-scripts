@@ -2,6 +2,20 @@ function no_popup{
 	$global:nopopup = $true
 }
 
+function lossless{
+	$ConfigPath = "C:\Users\jonas\AppData\Local\Lossless Scaling\Settings.xml"
+	(Get-Content $ConfigPath) -replace '\s*<WindowMaximized>true</WindowMaximized>', '<WindowMaximized>false</WindowMaximized>' | Set-Content $ConfigPath
+	$global:lossless = Start-Process "D:\Modding\Lossless Scaling\LosslessScaling.exe" -WindowStyle Minimized -PassThru
+}
+
+function proton{
+	if (Get-Process -Name "ProtonVPN.WireGuardService" -ErrorAction SilentlyContinue) {
+		Start-Process "C:\Program Files\Proton\VPN\ProtonVPN.Launcher.exe"      
+		Start-Sleep -s 1
+		python "C:\Users\jonas\scripts\protonVPN disconnect.py" 0.4
+	}
+}
+
 function choose_controller{
 	param(
 		$controller = '',
@@ -52,7 +66,8 @@ function choose_controller{
 							}
 							else {$script:DS4_already_running = $false}
 							if ($admin){
-								Start-Process "wscript.exe" -ArgumentList "C:\Users\jonas\scripts\DS4Windows.vbs" -NoNewWindow -Wait
+								schtasks /run /tn "DS4Windows administrator"
+								#old way (using logs)  -----  Start-Process "wscript.exe" -ArgumentList "C:\Users\jonas\scripts\DS4Windows.vbs" -NoNewWindow -Wait
 								$script:ds4 = $true #dummy declaration
 							}
 							else {
@@ -92,13 +107,27 @@ function clean_apps{
 	if ($wiimotehook) {
 		try {$wiimotehook.CloseMainWindow()} catch {try{Stop-Process -Name "WiimoteHook"} catch{}}
 		try {Stop-Process -Id $wiimotehook_popup.Id} catch {} }
-	if ($ds4) {
-		if (!$DS4_already_running) {
-			try {(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'DS4Windows.exe'").Terminate()} catch {}} 
-		}
-	}
 	if ($ds3) {
 		try{Stop-Process -Id $ds3.Id}catch{} 
 		$script:ds3= Start-Process "D:\Program Files\dshidmini_v2.2.282.0\DSHMC.exe" -PassThru }
+	if ($RTSS) {
+		try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'RTSS.exe'").Terminate()} catch {}
+	}
+	if ($lossless) {
+		try {$lossless.CloseMainWindow()} catch {try{Stop-Process -Name "LosslessScaling"} catch{}}
+	}
+	if ($ds4) {
+		if (!$DS4_already_running) {
+			schtasks /run /tn "DS4Windows Shutdown"
+			# Start-Sleep -s 2
+			# try {(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'DS4Windows.exe'").Terminate()} catch {}} 
+		}
+	}
 }
 
+#following lines will always run:
+<# if ( -not(Get-Process -Name "RTSS" -ErrorAction SilentlyContinue)) {
+	$global:RTSS = $true
+	. "C:\Users\jonas\scripts\RTSS.ps1"
+} #>
+#######

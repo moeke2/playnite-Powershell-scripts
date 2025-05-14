@@ -150,8 +150,8 @@ def main():
         raise ValueError(f"Unsupported resolution: {current_res}")
 
     if read_stored_resolution() != current_res:
-        update_resolution_file(current_res)
         copy_ini_files(current_res)
+        update_resolution_file(current_res)
         show_success_message(current_res)
 
 
