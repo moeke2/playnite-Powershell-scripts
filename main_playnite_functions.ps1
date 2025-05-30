@@ -1,133 +1,140 @@
-function no_popup{
-	$global:nopopup = $true
+# --- Utility Functions ---
+function Write-MessageBox {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string]				$Message,
+        [string]									$Title    = 'Notice',
+        [System.Windows.Forms.MessageBoxButtons]	$Buttons  = 'OK',
+        [System.Windows.Forms.MessageBoxIcon]		$Icon     = 'Information'
+    )
+    return [System.Windows.Forms.MessageBox]::Show($Message, $Title, $Buttons, $Icon)
 }
 
-function lossless{
-	$ConfigPath = "C:\Users\jonas\AppData\Local\Lossless Scaling\Settings.xml"
-	(Get-Content $ConfigPath) -replace '\s*<WindowMaximized>true</WindowMaximized>', '<WindowMaximized>false</WindowMaximized>' | Set-Content $ConfigPath
-	$global:lossless = Start-Process "D:\Modding\Lossless Scaling\LosslessScaling.exe" -WindowStyle Minimized -PassThru
+
+
+# --- Lossless Scaling Management ---
+function Start-LosslessScaling {
+	$LosslessExe = "D:\Modding\Lossless Scaling\LosslessScaling.exe"
+	$LosslessConfigPath = "C:\Users\jonas\AppData\Local\Lossless Scaling\Settings.xml"
+
+    if (Get-Process -Name 'LosslessScaling' -ErrorAction SilentlyContinue) {return}
+
+    if (-Not (Test-Path $LosslessConfigPath)) {
+        Write-Warning "Lossless Scaling config not found: $LosslessConfigPath"
+        return
+    }
+
+    [xml]$cfg = Get-Content $LosslessConfigPath
+	$cfg.Settings.WindowMaximized = "false"
+	$cfg.Save($LosslessConfigPath)
+
+    $global:LosslessProcess = Start-Process -FilePath $LosslessExe -WindowStyle Minimized -PassThru
+}
+function Stop-LosslessScaling {
+    if ($global:LosslessProcess) {
+		try {$global:LosslessProcess.CloseMainWindow() | Out-Null}
+        catch {Stop-Process -Name 'LosslessScaling' -ErrorAction SilentlyContinue}
+    }
 }
 
-function proton{
-	if (Get-Process -Name "ProtonVPN.WireGuardService" -ErrorAction SilentlyContinue) {
-		Start-Process "C:\Program Files\Proton\VPN\ProtonVPN.Launcher.exe"      
-		Start-Sleep -s 1
-		python "C:\Users\jonas\scripts\protonVPN disconnect.py" 0.4
-	}
+# --- ProtonVPN Management ---
+function Disconnect-ProtonVPN {
+    if (Get-Process -Name 'ProtonVPN.WireGuardService' -ErrorAction SilentlyContinue) {
+        Start-Process "C:\Program Files\Proton\VPN\ProtonVPN.Launcher.exe"
+        Start-Sleep -Seconds 1
+        python "C:\Users\jonas\OneDrive\Scripts\playnite\protonVPN disconnect.py" 0.4
+    }
 }
 
-function choose_controller{
-	param(
-		$controller = '',
-		[switch]$cancelbutton,
-		[switch]$admin,
-		[switch]$alert, #connect alert 
-		[switch]$da #don't ask
-	)
-	if ($da){ $script:popup = 'Yes'}
-	else {
-	if ($nopopup){
-		if ($connect_alert -eq 1) {[System.Windows.Forms.MessageBox]::Show("Make sure you have your controllers connected via bluetooth!", "Important!", "OK", 64)}
-		return
-	} 
-	
-	if ($cancelbutton){
-		$ButtonType = 'YesNoCancel'
-		$MessageBody = "Do you want to connect a ${controller} controller?`n`nclick 'cancel' if you want to stop connecting controllers."
-	}
-	else{
-		$ButtonType = 'YesNo'
-		$MessageBody = "Do you want to connect a ${controller} controller?"
-	}
-	$MessageIcon = 'Question'
-	$MessageTitle = "Connect ${controller}?"
-	$popup = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
-	
-	}
-	
-	switch ($popup) {
-		'Yes'    {
-			switch ($controller){
-				'wii'	{	
-							if (Get-Process -Name "WiimoteHook" -ErrorAction SilentlyContinue) {Stop-Process -Name "WiimoteHook"}
-							Start-Process -FilePath "explorer.exe" "ms-settings:bluetooth"
-							Start-Sleep -s 1
-							Start-Process -FilePath "explorer.exe" "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"
-							
-							$popup = [System.Windows.Forms.MessageBox]::Show("Click OK if all your Wiimote's are connected.", "Connect your Wiimote's", "OKCancel", 32)
-							if ($popup -eq 'Ok') {
-								$script:wiimotehook = Start-Process "D:\Program Files\WiimoteHook\WiimoteHook.exe" -WindowStyle Minimized -PassThru
-								$script:wiimotehook_popup = Start-Process powershell -ArgumentList "D:\Games\Playnite\_playnite_scripts\'Wiimote popup.ps1'" -PassThru -WindowStyle Minimized} #-NoNewWindow 
-						}
-				'ps4'	{
-							if (Get-Process -Name "DS4Windows" -ErrorAction SilentlyContinue) {
-								if ($admin) {try{Stop-Process -Name "DS4Windows"} catch {}}
-								$script:DS4_already_running = $true
-							}
-							else {$script:DS4_already_running = $false}
-							if ($admin){
-								schtasks /run /tn "DS4Windows administrator"
-								#old way (using logs)  -----  Start-Process "wscript.exe" -ArgumentList "C:\Users\jonas\scripts\DS4Windows.vbs" -NoNewWindow -Wait
-								$script:ds4 = $true #dummy declaration
-							}
-							else {
-								$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
-								Invoke-Expression $code
-							}
-							#$code = '$script:ds4 = Start-Process "D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe" -WindowStyle Minimized -PassThru'
-							#if ($admin){$code += ' -Verb RunAs'}
-							#Invoke-Expression $Code
-							
-							#if ($alert) {[System.Windows.Forms.MessageBox]::Show("Make sure you have your controllers connected via bluetooth!", "Important!", "OK", 64)}
-							
-						}
-				'ps3'	{	
-							if (Get-Process -Name "DSHMC" -ErrorAction SilentlyContinue) {Stop-Process -Name "DSHMC"}
-							$filepath = "C:\Windows\System32\DriverStore\FileRepository\bthps3.inf_amd64_213789b016987d0d\BthPS3.inf"
-							if (-not (Test-Path $filepath)) {[System.Windows.Forms.MessageBox]::Show("Bluetooth is disabled for your ps3 controllers during this game session. `nDownload bthPS3 and restart your pc!", "BthPS3 not installed")}
-							$filepath = "C:\Windows\System32\DriverStore\FileRepository\dshidmini.inf_amd64_b2b3954f90e159b0\dshidmini.inf"
-							if (-not (Test-Path $filepath)) {
-								Start-Process "D:\Program Files\dshidmini_v2.2.282.0\x64\dshidmini"
-								$popup = [System.Windows.Forms.MessageBox]::Show("Click OK if you have installed dshidmini.inf", "Install dshidmini driver", "OKCancel", 32)
-								if ($popup -eq 'Ok') {$script:ds3 = Start-Process "D:\Program Files\dshidmini_v2.2.282.0\DSHMC.exe" -WindowStyle Minimized -PassThru } }
-							else {$script:ds3 = Start-Process "D:\Program Files\dshidmini_v2.2.282.0\DSHMC.exe" -WindowStyle Minimized -PassThru }
-							Start-Sleep -s 1
-						}
-				default {[System.Windows.Forms.MessageBox]::Show("something is wrong with your playnite input")}
-				
-			}
-		}
-		'No'     { return}
-		'Cancel' { exit }
-		default  { return }
-	}
+# --- RivaTuner Management ---
+function Start-RivaTuner {
+	if (Get-Process -Name 'RTSS' -ErrorAction SilentlyContinue) {return}
+	$global:RTSSProcess = $true
+	schtasks /run /tn 'RivaTuner'
+}
+function Stop-RivaTuner {
+    if ($global:RTSSProcess) {
+        try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'RTSS.exe'").Terminate()} catch {}
+    }
 }
 
-function clean_apps{
-	if ($wiimotehook) {
-		try {$wiimotehook.CloseMainWindow()} catch {try{Stop-Process -Name "WiimoteHook"} catch{}}
-		try {Stop-Process -Id $wiimotehook_popup.Id} catch {} }
-	if ($ds3) {
-		try{Stop-Process -Id $ds3.Id}catch{} 
-		$script:ds3= Start-Process "D:\Program Files\dshidmini_v2.2.282.0\DSHMC.exe" -PassThru }
-	if ($RTSS) {
-		try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'RTSS.exe'").Terminate()} catch {}
-	}
-	if ($lossless) {
-		try {$lossless.CloseMainWindow()} catch {try{Stop-Process -Name "LosslessScaling"} catch{}}
-	}
-	if ($ds4) {
-		if (!$DS4_already_running) {
-			schtasks /run /tn "DS4Windows Shutdown"
-			# Start-Sleep -s 2
-			# try {(Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($ds4.Id)").Terminate()} catch {try{(Get-WmiObject -Class Win32_Process -Filter "Name = 'DS4Windows.exe'").Terminate()} catch {}} 
-		}
+
+
+
+# --- Controller Connection ---
+function Connect-Controller {
+    [CmdletBinding()]
+    param(
+		[Parameter(Mandatory=$true, Position=0, ValueFromRemainingArguments=$true)]
+        [ValidateSet('Wii','PS4','PS3')] [string[]]	$Type,
+        [switch]									$Da,
+        [switch]									$AsAdmin
+    )
+
+    foreach ($t in $Type) {
+        if ($Da) { 
+            $Response = 'Yes'
+        }
+        else {
+            $Response = Write-MessageBox "Connect a $t controller?" -Title "Connect $t?" -Icon 'Question' -Buttons 'YesNoCancel'
+        }
+        switch ($Response) {
+            'No'     { continue }
+            'Cancel' { return }
+        }
+
+        switch ($t) {
+			'Wii' { Connect-Wii -Da:$Da }
+			'PS4' { Connect-PS4 -AsAdmin:$AsAdmin -Da:$Da }
+			'PS3' { Connect-PS3 -Da:$Da }
+        }
+    }
+}
+
+function Connect-PS4 {
+    param([switch]$AsAdmin)
+
+    $global:DS4AlreadyRunning = Get-Process -Name 'DS4Windows' -ErrorAction SilentlyContinue
+
+    if ($DS4AlreadyRunning -and $AsAdmin) {
+        Stop-Process -Id $DS4AlreadyRunning.Id -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+    }
+
+    if ($AsAdmin) {
+        schtasks /run /tn 'DS4Windows administrator'
+    }
+    elseif (-not $DS4AlreadyRunning) {
+        Start-Process 'D:\Program Files\DS4Windows_3.2.9_x64\DS4Windows\DS4Windows.exe' -WindowStyle Minimized -PassThru
+    }
+}
+#will add the rest later
+
+
+
+# --- Cleanup ---
+function Close-Applications {
+    Stop-LosslessScaling
+    Stop-RivaTuner
+
+    if (!$DS4AlreadyRunning) {
+		schtasks /run /tn "DS4Windows Shutdown"
 	}
 }
 
-#following lines will always run:
-<# if ( -not(Get-Process -Name "RTSS" -ErrorAction SilentlyContinue)) {
-	$global:RTSS = $true
-	. "C:\Users\jonas\scripts\RTSS.ps1"
-} #>
-#######
+
+
+
+
+# --- Legacy Compatibility ---
+function choose_controller {
+    param(
+        $controller = '',
+        [switch]$cancelbutton,
+        [switch]$admin,
+        [switch]$alert,
+        [switch]$da
+    )
+
+    Connect-Controller -Type $controller -AsAdmin:$admin -Da:$da
+}
